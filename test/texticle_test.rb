@@ -104,8 +104,8 @@ class TexticleTest < ActiveSupport::TestCase
       SELECT "books".*
       FROM "books" INNER JOIN "authors" ON "authors"."id" = "books"."author_id"
       WHERE (to_tsvector('english', COALESCE("books"."title", '') :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
-        OR to_tsvector('english', COALESCE("authors"."id", 0) :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
-      ORDER BY LEAST(COALESCE("books"."title", '') :: text <-> 'dorian gray' :: text, COALESCE("authors"."id", 0) :: text <-> 0 :: text)
+        OR to_tsvector('english', COALESCE("authors"."id" || "authors"."name", '') :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
+      ORDER BY LEAST(COALESCE("books"."title", '') :: text <-> 'dorian gray' :: text, COALESCE("authors"."id" || "authors"."name", '') :: text <-> 'dorian gray' :: text)
     SQL
   end
 

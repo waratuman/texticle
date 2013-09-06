@@ -9,18 +9,15 @@ module Texticle
   end
 
   def ts_column_sets
-    column_sets = if searchable_columns[0].is_a?(Array)
-      searchable_columns.map do |array|
-        Texticle.ts_arel_columns(self, array)
-      end
-    else
-      searchable_columns.map { |c| Texticle.ts_arel_columns(self, c) }.map { |x| [x] }
-    end
+    sets = Texticle.ts_arel_columns(self, searchable_columns)
+    sets.is_a?(Array) ? sets.map { |x| x.is_a?(Array) ? x : [x] } : [[sets]]
   end
 
   def ts_vectors
     ts_column_sets.map do |columns|
+      # columns = columns.flatten
       coalesce = columns[1..-1].inject(columns[0]) { |memo, column| Arel::Nodes::InfixOperation.new('||', memo, column) }
+      
       coalesce = Arel::Nodes::InfixOperation.new('::', Arel::Nodes::NamedFunction.new('COALESCE', [coalesce, '']), Arel::Nodes::SqlLiteral.new('text'))
       Arel::Nodes::NamedFunction.new('to_tsvector', [ts_language, coalesce])
     end

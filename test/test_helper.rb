@@ -39,7 +39,7 @@ class ActiveSupport::TestCase
     belongs_to :author
 
     def self.searchable_columns
-      [:title, {:author => :id}]
+      [:title, {:author => [:id, :name]}]
     end
   end
 
