@@ -39,7 +39,7 @@ module Texticle
     orders = ts_column_sets.map do |columns|
       coalesce = columns[1..-1].inject(columns[0]) { |memo, column| Arel::Nodes::InfixOperation.new('||', memo, column) }
       coalesce = Arel::Nodes::InfixOperation.new('::', Arel::Nodes::NamedFunction.new('COALESCE', [coalesce, '']), Arel::Nodes::SqlLiteral.new('text'))
-      Arel::Nodes::InfixOperation.new('<->', coalesce, query)
+      Arel::Nodes::InfixOperation.new('<->', coalesce, Arel::Nodes::InfixOperation.new('::', query, Arel::Nodes::SqlLiteral.new('text')))
     end
 
     orders.size > 1 ? Arel::Nodes::NamedFunction.new('LEAST', orders) : orders[0]
