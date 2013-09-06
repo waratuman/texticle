@@ -77,7 +77,6 @@ class TexticleTest < ActiveSupport::TestCase
     SQL
   end
 
-  # TODO: query as array
   test 'Texticle::search with array' do
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Book.search(['dorian', 'gray']).to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
@@ -89,6 +88,36 @@ class TexticleTest < ActiveSupport::TestCase
         COALESCE("books"."author", '') :: text <-> 'dorian gray' :: text,
         COALESCE("books"."slug", '') :: text <-> 'dorian gray' :: text)
     SQL
+  end
+
+  test 'Texticle::search with join' do
+    assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Author.search('dorian gray').to_sql.gsub(/\s+/, ' ')
+      SELECT "authors".*
+      FROM "authors"
+      INNER JOIN "books" ON "books"."author_id" = "authors"."id"
+      WHERE (to_tsvector(0, COALESCE("authors"."name", '') :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
+        OR to_tsvector('english', COALESCE("books"."title", '') :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
+      ORDER BY LEAST(COALESCE("authors"."name", '') :: text <-> 'dorian gray' :: text, COALESCE("books"."title", '') :: text <-> 'dorian gray' :: text)
+    SQL
+  end
+
+  test 'Texticle::ts_arel_columns returns arel columns when given symbol' do
+    assert_equal Book.arel_table[:id], Texticle.ts_arel_columns(Book, :id)
+  end
+
+  test 'Texticle::ts_arel_columns returns arel columns when given array' do
+    assert_equal [Book.arel_table[:id], Book.arel_table[:title]], Texticle.ts_arel_columns(Book, [:id, :title])
+  end
+
+  test 'Texticle::ts_arel_columns returns arel columns when given hash' do
+    assert_equal Book.arel_table[:title], Texticle.ts_arel_columns(Author, {:books => :title})
+    assert_equal [Book.arel_table[:title], Book.arel_table[:id]], Texticle.ts_arel_columns(Author, {:books => [:title, :id]})
+  end
+
+  test 'Texticle::ts_arel_columns returns arel columns when given array with symbols and hash' do
+    assert_equal [Author.arel_table[:id], Book.arel_table[:title]], Texticle.ts_arel_columns(Author, [:id, {:books => :title}])
+    assert_equal [Author.arel_table[:id], Book.arel_table[:id], Book.arel_table[:title]], Texticle.ts_arel_columns(Author, [:id, {:books => :id}, {:books => :title}])
+    assert_equal [Author.arel_table[:id], [Book.arel_table[:id], Book.arel_table[:title]]], Texticle.ts_arel_columns(Author, [:id, {:books => [:id, :title]}])
   end
 
 end

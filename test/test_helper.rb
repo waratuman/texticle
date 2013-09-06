@@ -12,6 +12,7 @@ class ActiveSupport::TestCase
 
   class Book < ActiveRecord::Base
     extend Texticle
+    belongs_to :author
   end
 
   class Novel < ActiveRecord::Base
@@ -29,6 +30,15 @@ class ActiveSupport::TestCase
 
     def self.searchable_columns
       [:id]
+    end
+  end
+
+  class Author < ActiveRecord::Base
+    extend Texticle
+    has_many :books
+
+    def self.searchable_columns
+      [:name, :books => :title]
     end
   end
 
@@ -54,10 +64,15 @@ class ActiveSupport::TestCase
           t.string  :author
           t.string  :slug, :unique => true
         end
+        
+        create_table :authors do |t|
+          t.string :name
+        end
       end
 
       def self.down
         drop_table :books
+        drop_table :authors
       end
 
     end
