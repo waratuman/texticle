@@ -64,4 +64,11 @@ class TexticleTest < ActiveSupport::TestCase
     SQL
   end
 
+  # TODO: Text search integer columns
+
+  # TODO: query is converted to string
+  test 'Texicle::ts_query with integer returns query' do
+    assert_equal "to_tsquery('english', '0:*' :: text)", Book.ts_query(0).to_sql
+  end
+  
 end
