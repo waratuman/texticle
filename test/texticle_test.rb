@@ -99,6 +99,14 @@ class TexticleTest < ActiveSupport::TestCase
         OR to_tsvector('english', COALESCE("books"."title", '') :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
       ORDER BY LEAST(COALESCE("authors"."name", '') :: text <-> 'dorian gray' :: text, COALESCE("books"."title", '') :: text <-> 'dorian gray' :: text)
     SQL
+    
+    assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Cookbook.search('dorian gray').to_sql.gsub(/\s+/, ' ')
+      SELECT "books".*
+      FROM "books" INNER JOIN "authors" ON "authors"."id" = "books"."author_id"
+      WHERE (to_tsvector('english', COALESCE("books"."title", '') :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
+        OR to_tsvector('english', COALESCE("authors"."id", 0) :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
+      ORDER BY LEAST(COALESCE("books"."title", '') :: text <-> 'dorian gray' :: text, COALESCE("authors"."id", 0) :: text <-> 0 :: text)
+    SQL
   end
 
   test 'Texticle::ts_arel_columns returns arel columns when given symbol' do

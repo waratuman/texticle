@@ -33,6 +33,16 @@ class ActiveSupport::TestCase
     end
   end
 
+  class Cookbook < ActiveRecord::Base
+    extend Texticle
+    self.table_name = :books
+    belongs_to :author
+
+    def self.searchable_columns
+      [:title, {:author => :id}]
+    end
+  end
+
   class Author < ActiveRecord::Base
     extend Texticle
     has_many :books

@@ -8,24 +8,6 @@ module Texticle
     'english'
   end
 
-  def self.ts_arel_columns(model_class, value)
-    if value.is_a?(Array)
-      value.map { |v| ts_arel_columns(model_class, v) }
-    elsif value.is_a?(Hash)
-      if value.size > 1
-        value.map do |k, v|
-          relation = model_class.reflect_on_all_associations.find { |r| r.name == k }
-          ts_arel_columns(relation.klass, v)
-        end
-      else
-        relation = model_class.reflect_on_all_associations.find { |r| r.name == value.first[0] }
-        ts_arel_columns(relation.klass, value.first[1])
-      end
-    else
-      model_class.arel_table[value]
-    end
-  end
-
   def ts_column_sets
     column_sets = if searchable_columns[0].is_a?(Array)
       searchable_columns.map do |array|
@@ -72,8 +54,35 @@ module Texticle
     end
     conditions = conditions[1..-1].inject(conditions[0]) { |memo, c| Arel::Nodes::Or.new(memo, c) }
 
-    join_tables = ts_column_sets.flatten.map(&:relation).map(&:name) - [arel_table.name]
-    where(conditions).order(ts_order(query)).joins(join_tables.map(&:to_sym))
+    where(conditions).order(ts_order(query)).joins(Texticle.ts_relations(self).map(&:name).map(&:to_sym))
+  end
+
+  def self.ts_relations(model_class)
+    relations = []
+    model_class.searchable_columns.each do |value|
+      if value.is_a?(Hash)
+        relations << model_class.reflect_on_all_associations.find { |r| value.keys.map(&:to_s).include?(r.name.to_s) }
+      end
+    end
+    relations.uniq
+  end
+
+  def self.ts_arel_columns(model_class, value)
+    if value.is_a?(Array)
+      value.map { |v| ts_arel_columns(model_class, v) }
+    elsif value.is_a?(Hash)
+      if value.size > 1
+        value.map do |k, v|
+          relation = model_class.reflect_on_all_associations.find { |r| r.name == k }
+          ts_arel_columns(relation.klass, v)
+        end
+      else
+        relation = model_class.reflect_on_all_associations.find { |r| r.name == value.first[0] }
+        ts_arel_columns(relation.klass, value.first[1])
+      end
+    else
+      model_class.arel_table[value]
+    end
   end
 
 end
