@@ -19,11 +19,11 @@ class TexticleTest < ActiveSupport::TestCase
   end
 
   test 'Texicle::ts_vectors returns ts_vectors' do
-    assert_equal ["to_tsvector('english', COALESCE(\"books\".\"title\", ''))", "to_tsvector('english', COALESCE(\"books\".\"author\", ''))", "to_tsvector('english', COALESCE(\"books\".\"slug\", ''))"], Book.ts_vectors.map(&:to_sql)
+    assert_equal ["to_tsvector('english', COALESCE(\"books\".\"title\", '') :: text)", "to_tsvector('english', COALESCE(\"books\".\"author\", '') :: text)", "to_tsvector('english', COALESCE(\"books\".\"slug\", '') :: text)"], Book.ts_vectors.map(&:to_sql)
   end
 
   test 'Texicle::ts_vectors with joining text fields' do
-    assert_equal ["to_tsvector('english', COALESCE(\"books\".\"title\" || \"books\".\"author\", ''))"], Novel.ts_vectors.map(&:to_sql)
+    assert_equal ["to_tsvector('english', COALESCE(\"books\".\"title\" || \"books\".\"author\", '') :: text)"], Novel.ts_vectors.map(&:to_sql)
   end
 
   test 'Texicle::ts_query returns query' do
@@ -35,23 +35,23 @@ class TexticleTest < ActiveSupport::TestCase
   end
 
   test 'Texicle::ts_order returns ordering' do
-    assert_equal "LEAST(COALESCE(\"books\".\"title\", '') <-> 'dorian gray', COALESCE(\"books\".\"author\", '') <-> 'dorian gray', COALESCE(\"books\".\"slug\", '') <-> 'dorian gray')", Book.ts_order('dorian gray').to_sql
+    assert_equal "LEAST(COALESCE(\"books\".\"title\", '') :: text <-> 'dorian gray', COALESCE(\"books\".\"author\", '') :: text <-> 'dorian gray', COALESCE(\"books\".\"slug\", '') :: text <-> 'dorian gray')", Book.ts_order('dorian gray').to_sql
   end
 
   test 'Texicle::ts_order returns ordering with custom searchable_columns' do
-    assert_equal "COALESCE(\"books\".\"title\" || \"books\".\"author\", '') <-> 'dorian gray'", Novel.ts_order('dorian gray').to_sql
+    assert_equal "COALESCE(\"books\".\"title\" || \"books\".\"author\", '') :: text <-> 'dorian gray'", Novel.ts_order('dorian gray').to_sql
   end
 
   test 'Texicle::search' do
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Book.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books"
-      WHERE (to_tsvector('english', COALESCE("books"."title", '')) @@ to_tsquery('english', 'dorian & gray:*')
-        OR to_tsvector('english', COALESCE("books"."author", '')) @@ to_tsquery('english', 'dorian & gray:*')
-        OR to_tsvector('english', COALESCE("books"."slug", '')) @@ to_tsquery('english', 'dorian & gray:*'))
-      ORDER BY LEAST(COALESCE("books"."title", '') <-> 'dorian gray',
-        COALESCE("books"."author", '') <-> 'dorian gray',
-        COALESCE("books"."slug", '') <-> 'dorian gray')
+      WHERE (to_tsvector('english', COALESCE("books"."title", '') :: text) @@ to_tsquery('english', 'dorian & gray:*')
+        OR to_tsvector('english', COALESCE("books"."author", '') :: text) @@ to_tsquery('english', 'dorian & gray:*')
+        OR to_tsvector('english', COALESCE("books"."slug", '') :: text) @@ to_tsquery('english', 'dorian & gray:*'))
+      ORDER BY LEAST(COALESCE("books"."title", '') :: text <-> 'dorian gray',
+        COALESCE("books"."author", '') :: text <-> 'dorian gray',
+        COALESCE("books"."slug", '') :: text <-> 'dorian gray')
     SQL
   end
 
@@ -59,8 +59,8 @@ class TexticleTest < ActiveSupport::TestCase
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Novel.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books"
-      WHERE (to_tsvector('english', COALESCE("books"."title" || "books"."author", '')) @@ to_tsquery('english', 'dorian & gray:*'))
-      ORDER BY COALESCE("books"."title" || "books"."author", '') <-> 'dorian gray'
+      WHERE (to_tsvector('english', COALESCE("books"."title" || "books"."author", '') :: text) @@ to_tsquery('english', 'dorian & gray:*'))
+      ORDER BY COALESCE("books"."title" || "books"."author", '') :: text <-> 'dorian gray'
     SQL
   end
 

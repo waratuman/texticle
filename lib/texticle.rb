@@ -22,7 +22,7 @@ module Texticle
   def ts_vectors
     ts_column_sets.map do |columns|
       coalesce = columns[1..-1].inject(columns[0]) { |memo, column| Arel::Nodes::InfixOperation.new('||', memo, column) }
-      coalesce = Arel::Nodes::NamedFunction.new('COALESCE', [coalesce, ''])
+      coalesce = Arel::Nodes::InfixOperation.new('::', Arel::Nodes::NamedFunction.new('COALESCE', [coalesce, '']), Arel::Nodes::SqlLiteral.new('text'))
       Arel::Nodes::NamedFunction.new('to_tsvector', [ts_language, coalesce])
     end
   end
@@ -37,7 +37,7 @@ module Texticle
   def ts_order(query)
     orders = ts_column_sets.map do |columns|
       coalesce = columns[1..-1].inject(columns[0]) { |memo, column| Arel::Nodes::InfixOperation.new('||', memo, column) }
-      coalesce = Arel::Nodes::NamedFunction.new('COALESCE', [coalesce, ''])
+      coalesce = Arel::Nodes::InfixOperation.new('::', Arel::Nodes::NamedFunction.new('COALESCE', [coalesce, '']), Arel::Nodes::SqlLiteral.new('text'))
       Arel::Nodes::InfixOperation.new('<->', coalesce, query)
     end
 
