@@ -21,7 +21,15 @@ class ActiveSupport::TestCase
     def self.searchable_columns
       [[:title, :author]]
     end
+  end
 
+  class Biography < ActiveRecord::Base
+    extend Texticle
+    self.table_name = :books
+
+    def self.searchable_columns
+      [:id]
+    end
   end
 
   module Database
