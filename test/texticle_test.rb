@@ -27,11 +27,11 @@ class TexticleTest < ActiveSupport::TestCase
   end
 
   test 'Texicle::ts_query returns query' do
-    assert_equal "to_tsquery('english', 'dorian & gray:*')", Book.ts_query('dorian gray').to_sql
+    assert_equal "to_tsquery('english', 'dorian & gray:*' :: text)", Book.ts_query('dorian gray').to_sql
   end
 
   test 'Texicle::ts_query with array returns query' do
-    assert_equal "to_tsquery('english', 'dorian & gray:*')", Book.ts_query(['dorian', 'gray']).to_sql
+    assert_equal "to_tsquery('english', 'dorian & gray:*' :: text)", Book.ts_query(['dorian', 'gray']).to_sql
   end
 
   test 'Texicle::ts_order returns ordering' do
@@ -46,9 +46,9 @@ class TexticleTest < ActiveSupport::TestCase
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Book.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books"
-      WHERE (to_tsvector('english', COALESCE("books"."title", '') :: text) @@ to_tsquery('english', 'dorian & gray:*')
-        OR to_tsvector('english', COALESCE("books"."author", '') :: text) @@ to_tsquery('english', 'dorian & gray:*')
-        OR to_tsvector('english', COALESCE("books"."slug", '') :: text) @@ to_tsquery('english', 'dorian & gray:*'))
+      WHERE (to_tsvector('english', COALESCE("books"."title", '') :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
+        OR to_tsvector('english', COALESCE("books"."author", '') :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
+        OR to_tsvector('english', COALESCE("books"."slug", '') :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
       ORDER BY LEAST(COALESCE("books"."title", '') :: text <-> 'dorian gray',
         COALESCE("books"."author", '') :: text <-> 'dorian gray',
         COALESCE("books"."slug", '') :: text <-> 'dorian gray')
@@ -59,7 +59,7 @@ class TexticleTest < ActiveSupport::TestCase
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Novel.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books"
-      WHERE (to_tsvector('english', COALESCE("books"."title" || "books"."author", '') :: text) @@ to_tsquery('english', 'dorian & gray:*'))
+      WHERE (to_tsvector('english', COALESCE("books"."title" || "books"."author", '') :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
       ORDER BY COALESCE("books"."title" || "books"."author", '') :: text <-> 'dorian gray'
     SQL
   end

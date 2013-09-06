@@ -31,6 +31,7 @@ module Texticle
     querytext = query.is_a?(Array) ? query.map(&:strip) : query.strip.split(" ")
     querytext = querytext[1..-1].inject(querytext[0]) { |memo, c| memo +  ' & ' + c }
     querytext << ':*'
+    querytext = Arel::Nodes::InfixOperation.new('::', querytext, Arel::Nodes::SqlLiteral.new('text'))
     Arel::Nodes::NamedFunction.new('to_tsquery', [ts_language, querytext])
   end
 
