@@ -42,7 +42,7 @@ module Texticle
   def ts_language
     'english'
   end
-  
+
   def ts_vectors
     ts_columns.map do |columns|
       columns[0] = Arel::Nodes::InfixOperation.new('::', columns[0], Arel::Nodes::SqlLiteral.new('text'))
@@ -53,9 +53,13 @@ module Texticle
   end
 
   def ts_query(query)
-    querytext = query.is_a?(Array) ? query.map(&:to_s).map(&:strip) : query.to_s.strip.split(" ")
+    querytext = if query.is_a?(Array)
+      query.map(&:to_s).map { |x| x.gsub(/\(\):\|!&\*'/, '') }
+    else
+      query.to_s.strip.gsub(/\(|\)|:|\||!|\&|\*|'/, '').split(/\s+/)
+    end
+    querytext = querytext.map { |q| q << ':*' }
     querytext = querytext[1..-1].inject(querytext[0]) { |memo, c| memo +  ' & ' + c }
-    querytext << ':*'
     querytext = Arel::Nodes::InfixOperation.new('::', querytext, Arel::Nodes::SqlLiteral.new('text'))
     # This has to be a SqlLiteral due to the following issue: https://github.com/rails/arel/issues/153.
     expressions = [Arel::Nodes::SqlLiteral.new(connection.quote(ts_language)), Arel::Nodes::SqlLiteral.new(querytext.to_sql)]

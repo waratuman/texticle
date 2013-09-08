@@ -50,15 +50,15 @@ class TexticleTest < ActiveSupport::TestCase
   end
   
   test 'Texticle::ts_query returns query' do
-    assert_equal "to_tsquery('english', 'dorian & gray:*' :: text)", Book.ts_query('dorian gray').to_sql
+    assert_equal "to_tsquery('english', 'dorian:* & gray:*' :: text)", Book.ts_query('dorian gray').to_sql
   end
-  
-  test 'Texticle::ts_query returns query with special chars' do
-    assert_equal "to_tsquery('english', 'dorian & gray:*' :: text)", Book.ts_query('dorian gray').to_sql
+
+  test "Texticle#ts_query escapes ():|!&*'" do
+    assert_equal "to_tsquery('english', 'dorian:* & gray:*' :: text)", Book.ts_query('dorian & gray ():|!&*\'').to_sql
   end
   
   test 'Texticle::ts_query with array returns query' do
-    assert_equal "to_tsquery('english', 'dorian & gray:*' :: text)", Book.ts_query(['dorian', 'gray']).to_sql
+    assert_equal "to_tsquery('english', 'dorian:* & gray:*' :: text)", Book.ts_query(['dorian', 'gray']).to_sql
   end
   
   test 'Texticle::ts_query with integer returns query' do
@@ -77,9 +77,9 @@ class TexticleTest < ActiveSupport::TestCase
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Book.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books"
-      WHERE (to_tsvector('english', "books"."title" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
-        OR to_tsvector('english', "books"."author" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
-        OR to_tsvector('english', "books"."slug" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
+      WHERE (to_tsvector('english', "books"."title" :: text) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', "books"."author" :: text) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', "books"."slug" :: text) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
       ORDER BY LEAST("books"."title" :: text <-> 'dorian gray' :: text,
         "books"."author" :: text <-> 'dorian gray' :: text,
         "books"."slug" :: text <-> 'dorian gray' :: text)
@@ -90,7 +90,7 @@ class TexticleTest < ActiveSupport::TestCase
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Novel.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books"
-      WHERE (to_tsvector('english', "books"."title" :: text || "books"."author" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
+      WHERE (to_tsvector('english', "books"."title" :: text || "books"."author" :: text) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
       ORDER BY "books"."title" :: text || "books"."author" :: text <-> 'dorian gray' :: text
     SQL
   end
@@ -108,9 +108,9 @@ class TexticleTest < ActiveSupport::TestCase
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Book.search(['dorian', 'gray']).to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books"
-      WHERE (to_tsvector('english', "books"."title" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
-        OR to_tsvector('english', "books"."author" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
-        OR to_tsvector('english', "books"."slug" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
+      WHERE (to_tsvector('english', "books"."title" :: text) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', "books"."author" :: text) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', "books"."slug" :: text) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
       ORDER BY LEAST("books"."title" :: text <-> 'dorian gray' :: text,
         "books"."author" :: text <-> 'dorian gray' :: text,
         "books"."slug" :: text <-> 'dorian gray' :: text)
@@ -122,16 +122,16 @@ class TexticleTest < ActiveSupport::TestCase
       SELECT "authors".*
       FROM "authors"
       INNER JOIN "books" ON "books"."author_id" = "authors"."id"
-      WHERE (to_tsvector('english', "authors"."name" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
-        OR to_tsvector('english', "books"."title" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
+      WHERE (to_tsvector('english', "authors"."name" :: text) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', "books"."title" :: text) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
       ORDER BY LEAST("authors"."name" :: text <-> 'dorian gray' :: text, "books"."title" :: text <-> 'dorian gray' :: text)
     SQL
     
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Cookbook.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books" INNER JOIN "authors" ON "authors"."id" = "books"."author_id"
-      WHERE (to_tsvector('english', "books"."title" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
-        OR to_tsvector('english', "authors"."id" :: text || "authors"."name" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
+      WHERE (to_tsvector('english', "books"."title" :: text) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', "authors"."id" :: text || "authors"."name" :: text) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
       ORDER BY LEAST("books"."title" :: text <-> 'dorian gray' :: text, "authors"."id" :: text || "authors"."name" :: text <-> 'dorian gray' :: text)
     SQL
   end
