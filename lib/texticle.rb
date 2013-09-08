@@ -1,25 +1,53 @@
 module Texticle
 
-  def searchable_columns(*names)
+  def self.arel_columns(klass, value)
+    if value.is_a?(Array)
+      value.map { |v| Texticle.arel_columns(klass, v) }
+    elsif value.is_a?(Hash)
+      value.map { |k, v|
+        relation = klass.reflect_on_all_associations.find { |r| r.name.to_s == k.to_s }
+        Texticle.arel_columns(relation.klass, v)
+      }.flatten
+    else
+      klass.arel_table[value.to_s]
+    end
+  end
+
+  def self.ts_relations(klass)
+    relations = []
+    klass.searchable_columns.each do |value|
+      if value.is_a?(Hash)
+        relations << klass.reflect_on_all_associations.find { |r| value.keys.map(&:to_s).include?(r.name.to_s) }
+      end
+    end
+    relations.uniq
+  end
+
+  def searchable_columns
     columns.select { |c| [:string, :text].include?(c.type) }.map(&:name)
+  end
+
+  def ts_columns
+    columns = []
+    searchable_columns.each do |arg|
+      if arg.is_a?(Hash) || arg.is_a?(Array)
+        columns << Texticle.arel_columns(self, arg)
+      else
+        columns << [Texticle.arel_columns(self, arg)]
+      end
+    end
+    columns
   end
 
   def ts_language
     'english'
   end
-
-  def ts_column_sets
-    sets = Texticle.ts_arel_columns(self, searchable_columns)
-    sets.is_a?(Array) ? sets.map { |x| x.is_a?(Array) ? x : [x] } : [[sets]]
-  end
-
+  
   def ts_vectors
-    ts_column_sets.map do |columns|
-      # columns = columns.flatten
-      coalesce = columns[1..-1].inject(columns[0]) { |memo, column| Arel::Nodes::InfixOperation.new('||', memo, column) }
-      
-      coalesce = Arel::Nodes::InfixOperation.new('::', Arel::Nodes::NamedFunction.new('COALESCE', [coalesce, '']), Arel::Nodes::SqlLiteral.new('text'))
-      Arel::Nodes::NamedFunction.new('to_tsvector', [ts_language, coalesce])
+    ts_columns.map do |columns|
+      columns[0] = Arel::Nodes::InfixOperation.new('::', columns[0], Arel::Nodes::SqlLiteral.new('text'))
+      document = columns[1..-1].inject(columns[0]) { |memo, column| Arel::Nodes::InfixOperation.new('||', memo, Arel::Nodes::InfixOperation.new('::', column, Arel::Nodes::SqlLiteral.new('text'))) }
+      Arel::Nodes::NamedFunction.new('to_tsvector', [ts_language, document])
     end
   end
 
@@ -27,59 +55,35 @@ module Texticle
     querytext = query.is_a?(Array) ? query.map(&:to_s).map(&:strip) : query.to_s.strip.split(" ")
     querytext = querytext[1..-1].inject(querytext[0]) { |memo, c| memo +  ' & ' + c }
     querytext << ':*'
-    querytext = Arel::Nodes::InfixOperation.new('::', querytext.to_s, Arel::Nodes::SqlLiteral.new('text'))
-    # Arel::Nodes::NamedFunction.new('to_tsquery', [ts_language, querytext])
-    Arel::Nodes::NamedFunction.new('to_tsquery', [Arel::Nodes::SqlLiteral.new("'#{ts_language}'"), Arel::Nodes::SqlLiteral.new(querytext.to_sql)])
+    querytext = Arel::Nodes::InfixOperation.new('::', querytext, Arel::Nodes::SqlLiteral.new('text'))
+    # This has to be a SqlLiteral due to the following issue: https://github.com/rails/arel/issues/153.
+    expressions = [Arel::Nodes::SqlLiteral.new(connection.quote(ts_language)), Arel::Nodes::SqlLiteral.new(querytext.to_sql)]
+    Arel::Nodes::NamedFunction.new('to_tsquery', expressions)
   end
-
+  
   def ts_order(query)
     query = query.join(' ') if query.is_a?(Array)
-    orders = ts_column_sets.map do |columns|
-      coalesce = columns[1..-1].inject(columns[0]) { |memo, column| Arel::Nodes::InfixOperation.new('||', memo, column) }
-      coalesce = Arel::Nodes::InfixOperation.new('::', Arel::Nodes::NamedFunction.new('COALESCE', [coalesce, '']), Arel::Nodes::SqlLiteral.new('text'))
-      Arel::Nodes::InfixOperation.new('<->', coalesce, Arel::Nodes::InfixOperation.new('::', query, Arel::Nodes::SqlLiteral.new('text')))
+    orders = ts_columns.map do |columns|
+      columns[0] = Arel::Nodes::InfixOperation.new('::', columns[0], Arel::Nodes::SqlLiteral.new('text'))
+      document = columns[1..-1].inject(columns[0]) { |memo, column| Arel::Nodes::InfixOperation.new('||', memo, Arel::Nodes::InfixOperation.new('::', column, Arel::Nodes::SqlLiteral.new('text'))) }
+      Arel::Nodes::InfixOperation.new('<->', document, Arel::Nodes::InfixOperation.new('::', query, Arel::Nodes::SqlLiteral.new('text')))
     end
-
+  
     orders.size > 1 ? Arel::Nodes::NamedFunction.new('LEAST', orders) : orders[0]
   end
-
+  
   def search(query)
     return where(nil) if query.to_s.empty?
-
+  
     conditions = ts_vectors.map do |v|
       Arel::Nodes::InfixOperation.new('@@', v, ts_query(query))
     end
     conditions = conditions[1..-1].inject(conditions[0]) { |memo, c| Arel::Nodes::Or.new(memo, c) }
-
-    where(conditions).order(ts_order(query)).joins(Texticle.ts_relations(self).map(&:name).map(&:to_sym))
+    
+    joins = Texticle.ts_relations(self).map(&:name).map(&:to_sym)
+  
+    where(conditions).order(ts_order(query)).joins(joins)
   end
 
-  def self.ts_relations(model_class)
-    relations = []
-    model_class.searchable_columns.each do |value|
-      if value.is_a?(Hash)
-        relations << model_class.reflect_on_all_associations.find { |r| value.keys.map(&:to_s).include?(r.name.to_s) }
-      end
-    end
-    relations.uniq
-  end
-
-  def self.ts_arel_columns(model_class, value)
-    if value.is_a?(Array)
-      value.map { |v| ts_arel_columns(model_class, v) }
-    elsif value.is_a?(Hash)
-      if value.size > 1
-        value.map do |k, v|
-          relation = model_class.reflect_on_all_associations.find { |r| r.name == k }
-          ts_arel_columns(relation.klass, v)
-        end
-      else
-        relation = model_class.reflect_on_all_associations.find { |r| r.name == value.first[0] }
-        ts_arel_columns(relation.klass, value.first[1])
-      end
-    else
-      model_class.arel_table[value]
-    end
-  end
 
 end
