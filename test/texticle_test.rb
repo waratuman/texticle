@@ -44,7 +44,7 @@ class TexticleTest < ActiveSupport::TestCase
   test 'Texticle::ts_vectors returns ts_vectors' do
     assert_equal ["to_tsvector('english', \"books\".\"title\" :: text)", "to_tsvector('english', \"books\".\"author\" :: text)", "to_tsvector('english', \"books\".\"slug\" :: text)"], Book.ts_vectors.map(&:to_sql)
   end
-  
+
   test 'Texticle::ts_vectors with joining text fields' do
     assert_equal ["to_tsvector('english', \"books\".\"title\" :: text || \"books\".\"author\" :: text)"], Novel.ts_vectors.map(&:to_sql)
   end
@@ -122,7 +122,7 @@ class TexticleTest < ActiveSupport::TestCase
       SELECT "authors".*
       FROM "authors"
       INNER JOIN "books" ON "books"."author_id" = "authors"."id"
-      WHERE (to_tsvector(0, "authors"."name" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
+      WHERE (to_tsvector('english', "authors"."name" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text)
         OR to_tsvector('english', "books"."title" :: text) @@ to_tsquery('english', 'dorian & gray:*' :: text))
       ORDER BY LEAST("authors"."name" :: text <-> 'dorian gray' :: text, "books"."title" :: text <-> 'dorian gray' :: text)
     SQL
