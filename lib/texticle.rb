@@ -30,8 +30,14 @@ module Texticle
   def ts_columns
     columns = []
     searchable_columns.each do |arg|
-      if arg.is_a?(Hash) || arg.is_a?(Array)
+      if arg.is_a?(Array)
         columns << Texticle.arel_columns(self, arg)
+      elsif arg.is_a?(Hash)
+        arg.each_pair do |key, value|
+          relation = Texticle.ts_relations(self).find { |r| r.name.to_s == key.to_s }
+          cs = Texticle.arel_columns(relation.klass, value)
+          cs.is_a?(Array) ? cs.map { |x| columns << x } : columns << [cs]
+        end
       else
         columns << [Texticle.arel_columns(self, arg)]
       end

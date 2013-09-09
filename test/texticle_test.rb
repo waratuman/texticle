@@ -44,7 +44,7 @@ class TexticleTest < ActiveSupport::TestCase
   test 'Texticle#ts_vectors returns ts_vectors' do
     assert_equal ["to_tsvector('english', \"books\".\"title\" :: text)", "to_tsvector('english', \"books\".\"author\" :: text)", "to_tsvector('english', \"books\".\"slug\" :: text)"], Book.ts_vectors.map(&:to_sql)
   end
-
+  
   test 'Texticle#ts_vectors with joining text fields' do
     assert_equal ["to_tsvector('english', \"books\".\"title\" :: text || \"books\".\"author\" :: text)"], Novel.ts_vectors.map(&:to_sql)
   end
@@ -52,7 +52,7 @@ class TexticleTest < ActiveSupport::TestCase
   test 'Texticle#ts_query returns query' do
     assert_equal "to_tsquery('english', 'dorian:* & gray:*' :: text)", Book.ts_query('dorian gray').to_sql
   end
-
+  
   test "Texticle#ts_query escapes ():|!&*'" do
     assert_equal "to_tsquery('english', 'dorian:* & gray:*' :: text)", Book.ts_query('dorian & gray ():|!&*\'').to_sql
   end
@@ -139,7 +139,7 @@ class TexticleTest < ActiveSupport::TestCase
   test 'Texticle#search with nil' do
     assert_equal 'SELECT "books".* FROM "books"', Book.search(nil).to_sql
   end
-
+  
   test 'Texticle#search with empty string' do
     assert_equal 'SELECT "books".* FROM "books"', Book.search('').to_sql
     assert_equal 'SELECT "books".* FROM "books"', Book.search(' ').to_sql

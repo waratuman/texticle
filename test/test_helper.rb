@@ -10,11 +10,13 @@ puts ActiveRecord::Base
 
 class ActiveSupport::TestCase
 
+  # Simple Search
   class Book < ActiveRecord::Base
     extend Texticle
     belongs_to :author
   end
 
+  # Search with joined fields
   class Novel < ActiveRecord::Base
     extend Texticle
     self.table_name = :books
@@ -24,6 +26,7 @@ class ActiveSupport::TestCase
     end
   end
 
+  # Search with integer field
   class Biography < ActiveRecord::Base
     extend Texticle
     self.table_name = :books
@@ -33,16 +36,18 @@ class ActiveSupport::TestCase
     end
   end
 
+  # Search on relations
   class Cookbook < ActiveRecord::Base
     extend Texticle
     self.table_name = :books
     belongs_to :author
 
     def self.searchable_columns
-      [:title, {:author => [:id, :name]}]
+      [:title, {:author => [[:id, :name]]}]
     end
   end
 
+  # Search on relations
   class Author < ActiveRecord::Base
     extend Texticle
     has_many :books
