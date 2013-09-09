@@ -78,7 +78,7 @@ module Texticle
   end
   
   def search(query)
-    return where(nil) if query.to_s.empty?
+    return where(nil) if query.to_s.strip.empty?
   
     conditions = ts_vectors.map do |v|
       Arel::Nodes::InfixOperation.new('@@', v, ts_query(query))

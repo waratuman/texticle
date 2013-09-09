@@ -140,4 +140,9 @@ class TexticleTest < ActiveSupport::TestCase
     assert_equal 'SELECT "books".* FROM "books"', Book.search(nil).to_sql
   end
 
+  test 'Texticle#search with empty string' do
+    assert_equal 'SELECT "books".* FROM "books"', Book.search('').to_sql
+    assert_equal 'SELECT "books".* FROM "books"', Book.search(' ').to_sql
+  end
+
 end
