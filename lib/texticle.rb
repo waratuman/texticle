@@ -49,9 +49,8 @@ module Texticle
   def ts_vectors
     Texticle.arel_columns(self, ts_columns).map do |columns|
       columns = [columns] if !columns.is_a?(Array)
-      columns[0] = Arel::Nodes::InfixOperation.new('::', columns[0], Arel::Nodes::SqlLiteral.new('text'))
-      document = columns[1..-1].inject(columns[0]) { |memo, column| Arel::Nodes::InfixOperation.new('||', memo, Arel::Nodes::InfixOperation.new('::', column, Arel::Nodes::SqlLiteral.new('text'))) }
-      expressions = [Arel::Nodes::SqlLiteral.new(connection.quote(ts_language)), Arel::Nodes::SqlLiteral.new(document.to_sql)]
+      document = Arel::Nodes::SqlLiteral.new(Arel::Nodes::NamedFunction.new('concat_ws', [' '] + columns).to_sql)
+      expressions = [Arel::Nodes::SqlLiteral.new(connection.quote(ts_language)), Arel::Nodes::SqlLiteral.new(document)]
       Arel::Nodes::NamedFunction.new('to_tsvector', expressions)
     end
   end
@@ -86,8 +85,7 @@ module Texticle
     query = query.join(' ') if query.is_a?(Array)
     orders = Texticle.arel_columns(self, ts_columns).map do |columns|
       columns = [columns] if !columns.is_a?(Array)
-      columns[0] = Arel::Nodes::InfixOperation.new('::', columns[0], Arel::Nodes::SqlLiteral.new('text'))
-      document = columns[1..-1].inject(columns[0]) { |memo, column| Arel::Nodes::InfixOperation.new('||', memo, Arel::Nodes::InfixOperation.new('::', column, Arel::Nodes::SqlLiteral.new('text'))) }
+      document = Arel::Nodes::SqlLiteral.new(Arel::Nodes::NamedFunction.new('concat_ws', [' '] + columns).to_sql)
       Arel::Nodes::InfixOperation.new('<->', document, Arel::Nodes::InfixOperation.new('::', Arel::Nodes::SqlLiteral.new(connection.quote(query)), Arel::Nodes::SqlLiteral.new('text')))
     end
 
