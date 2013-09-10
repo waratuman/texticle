@@ -21,9 +21,7 @@ class ActiveSupport::TestCase
     extend Texticle
     self.table_name = :books
 
-    def self.searchable_columns
-      [[:title, :author]]
-    end
+    searchable [:title, :subtitle]
   end
 
   # Search with integer field
@@ -31,9 +29,7 @@ class ActiveSupport::TestCase
     extend Texticle
     self.table_name = :books
 
-    def self.searchable_columns
-      [:id]
-    end
+    searchable :id
   end
 
   # Search on relations
@@ -42,9 +38,7 @@ class ActiveSupport::TestCase
     self.table_name = :books
     belongs_to :author
 
-    def self.searchable_columns
-      [:title, {:author => [[:id, :name]]}]
-    end
+    searchable :title, {:author => :id}, {:author => :name}
   end
 
   # Search on relations
@@ -52,9 +46,7 @@ class ActiveSupport::TestCase
     extend Texticle
     has_many :books
 
-    def self.searchable_columns
-      [:name, :books => :title]
-    end
+    searchable :name, :books => :title
   end
 
   module Database
@@ -76,7 +68,8 @@ class ActiveSupport::TestCase
       def self.up
         create_table :books do |t|
           t.string  :title
-          t.string  :author
+          t.string  :subtitle
+          t.integer :author_id
           t.string  :slug, :unique => true
         end
         
