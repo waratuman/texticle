@@ -2,11 +2,10 @@ require 'rubygems'
 require 'bundler/setup'
 require 'sqlite3'
 require 'active_record'
+require 'minitest'
 require 'minitest/unit'
-require 'turn/autorun'
+require 'minitest/autorun'
 require 'texticle'
-
-puts ActiveRecord::Base
 
 class ActiveSupport::TestCase
 
@@ -72,7 +71,7 @@ class ActiveSupport::TestCase
           t.integer :author_id
           t.string  :slug, :unique => true
         end
-        
+
         create_table :authors do |t|
           t.string :name
         end

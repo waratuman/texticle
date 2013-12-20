@@ -25,7 +25,7 @@ class TexticleTest < ActiveSupport::TestCase
   test 'ts_vectors returns ts_vectors' do
     assert_equal ["to_tsvector('english', concat_ws(' ', \"books\".\"title\"))", "to_tsvector('english', concat_ws(' ', \"books\".\"subtitle\"))", "to_tsvector('english', concat_ws(' ', \"books\".\"slug\"))"], Book.ts_vectors.map(&:to_sql)
   end
-  
+
   test 'ts_vectors with joining text fields' do
     assert_equal ["to_tsvector('english', concat_ws(' ', \"books\".\"title\", \"books\".\"subtitle\"))"], Novel.ts_vectors.map(&:to_sql)
   end
@@ -37,27 +37,27 @@ class TexticleTest < ActiveSupport::TestCase
   test 'ts_query returns query' do
     assert_equal "to_tsquery('english', 'dorian:* & gray:*' :: text)", Book.ts_query('dorian gray').to_sql
   end
-  
+
   test "ts_query escapes ():|!&*'" do
     assert_equal "to_tsquery('english', 'dorian:* & gray:*' :: text)", Book.ts_query('dorian & gray ():|!&*\'').to_sql
   end
-  
+
   test 'ts_query with array returns query' do
     assert_equal "to_tsquery('english', 'dorian:* & gray:*' :: text)", Book.ts_query(['dorian', 'gray']).to_sql
   end
-  
+
   test 'ts_query with integer returns query' do
     assert_equal "to_tsquery('english', '0:*' :: text)", Book.ts_query(0).to_sql
   end
-  
+
   test 'ts_order returns ordering' do
     assert_equal "LEAST(concat_ws(' ', \"books\".\"title\") <-> 'dorian gray' :: text, concat_ws(' ', \"books\".\"subtitle\") <-> 'dorian gray' :: text, concat_ws(' ', \"books\".\"slug\") <-> 'dorian gray' :: text)", Book.ts_order('dorian gray').to_sql
   end
-  
+
   test 'ts_order returns ordering with custom ts_columns' do
     assert_equal "concat_ws(' ', \"books\".\"title\", \"books\".\"subtitle\") <-> 'dorian gray' :: text", Novel.ts_order('dorian gray').to_sql
   end
-  
+
   test 'search' do
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Book.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
@@ -70,7 +70,7 @@ class TexticleTest < ActiveSupport::TestCase
         concat_ws(' ', "books"."slug") <-> 'dorian gray' :: text)
     SQL
   end
-  
+
   test 'search with custom searhable_columns' do
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Novel.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
@@ -79,7 +79,7 @@ class TexticleTest < ActiveSupport::TestCase
       ORDER BY concat_ws(' ', "books"."title", "books"."subtitle") <-> 'dorian gray' :: text
     SQL
   end
-  
+
   test 'search with integer columns' do
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Biography.search(0).to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
@@ -88,7 +88,7 @@ class TexticleTest < ActiveSupport::TestCase
       ORDER BY concat_ws(' ', "books"."id") <-> 0 :: text
     SQL
   end
-  
+
   test 'search with array' do
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Book.search(['dorian', 'gray']).to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
@@ -101,7 +101,7 @@ class TexticleTest < ActiveSupport::TestCase
         concat_ws(' ', "books"."slug") <-> 'dorian gray' :: text)
     SQL
   end
-  
+
   test 'search with join' do
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Author.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "authors".*
@@ -111,7 +111,7 @@ class TexticleTest < ActiveSupport::TestCase
         OR to_tsvector('english', concat_ws(' ', "books"."title")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
       ORDER BY LEAST(concat_ws(' ', "authors"."name") <-> 'dorian gray' :: text, concat_ws(' ', "books"."title") <-> 'dorian gray' :: text)
     SQL
-    
+
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Cookbook.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books" INNER JOIN "authors" ON "authors"."id" = "books"."author_id"
@@ -121,14 +121,15 @@ class TexticleTest < ActiveSupport::TestCase
       ORDER BY LEAST(concat_ws(' ', "books"."title") <-> 'dorian gray' :: text, concat_ws(' ', "authors"."id") <-> 'dorian gray' :: text, concat_ws(' ', "authors"."name") <-> 'dorian gray' :: text)
     SQL
   end
-  
+
   test 'search with nil' do
     assert_equal 'SELECT "books".* FROM "books"', Book.search(nil).to_sql
   end
-  
+
   test 'search with empty string' do
     assert_equal 'SELECT "books".* FROM "books"', Book.search('').to_sql
     assert_equal 'SELECT "books".* FROM "books"', Book.search(' ').to_sql
   end
 
 end
+
