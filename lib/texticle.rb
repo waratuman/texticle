@@ -1,5 +1,3 @@
-require File.join(File.dirname(__FILE__), '..', 'ext', 'arel.rb')
-
 module Texticle
 
   def self.extended(klass)
@@ -41,10 +39,7 @@ module Texticle
 
     joins = ts_relations.map(&:name).map(&:to_sym)
 
-    result = where(conditions).order(ts_order(query)).joins(joins)
-    # TODO: Add distinct on support to Rails?
-    result.arel.distinct_on(arel_table[primary_key]) if result.join_sql
-    result
+    where(conditions).order(ts_order(query)).joins(joins)
   end
 
   def ts_language
