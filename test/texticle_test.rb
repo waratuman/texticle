@@ -104,7 +104,7 @@ class TexticleTest < ActiveSupport::TestCase
 
   test 'search with join' do
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Author.search('dorian gray').to_sql.gsub(/\s+/, ' ')
-      SELECT "authors".*
+      SELECT DISTINCT ON ( "authors"."id" ) "authors".*
       FROM "authors"
       INNER JOIN "books" ON "books"."author_id" = "authors"."id"
       WHERE (to_tsvector('english', concat_ws(' ', "authors"."name")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
@@ -113,7 +113,7 @@ class TexticleTest < ActiveSupport::TestCase
     SQL
 
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Cookbook.search('dorian gray').to_sql.gsub(/\s+/, ' ')
-      SELECT "books".*
+      SELECT DISTINCT ON ( "books"."id" ) "books".*
       FROM "books" INNER JOIN "authors" ON "authors"."id" = "books"."author_id"
       WHERE (to_tsvector('english', concat_ws(' ', "books"."title")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
         OR to_tsvector('english', concat_ws(' ', "authors"."id")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)

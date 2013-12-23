@@ -2,10 +2,22 @@ require 'rubygems'
 require 'bundler/setup'
 require 'sqlite3'
 require 'active_record'
-require 'minitest'
 require 'minitest/unit'
 require 'minitest/autorun'
 require 'texticle'
+
+module Arel
+  module Visitors
+    class ToSql < Arel::Visitors::Visitor
+      private
+
+      def visit_Arel_Nodes_DistinctOn o, a
+        "DISTINCT ON ( #{visit o.expr, a} )"
+      end
+
+    end
+  end
+end
 
 class ActiveSupport::TestCase
 

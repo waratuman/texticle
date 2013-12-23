@@ -3,7 +3,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "texticle"
-  spec.version       = '0.0.1'
+  spec.version       = '0.0.2'
   spec.authors       = ["James R. Bracy"]
   spec.email         = ["waratuman@gmail.com"]
   spec.description   = %q{ActiveRecord extension for full text search in PostgreSQL}

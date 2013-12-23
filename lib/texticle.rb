@@ -1,3 +1,5 @@
+require File.join(File.dirname(__FILE__), '..', 'ext', 'arel.rb')
+
 module Texticle
 
   def self.extended(klass)
@@ -29,7 +31,7 @@ module Texticle
     end
   end
 
-  def search(query)
+  def search(query, options={})
     return where(nil) if query.to_s.strip.empty?
 
     conditions = ts_vectors.map do |v|
@@ -39,7 +41,10 @@ module Texticle
 
     joins = ts_relations.map(&:name).map(&:to_sym)
 
-    where(conditions).order(ts_order(query)).joins(joins)
+    result = where(conditions).order(ts_order(query)).joins(joins)
+    # TODO: Add distinct on support to Rails?
+    result.arel.distinct_on(arel_table[primary_key]) if result.join_sql
+    result
   end
 
   def ts_language
