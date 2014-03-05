@@ -46,10 +46,13 @@ module Texticle
     "english"
   end
 
+  
+
   def ts_vectors
     Texticle.arel_columns(self, ts_columns).map do |columns|
       columns = [columns] if !columns.is_a?(Array)
-      document = Arel::Nodes::SqlLiteral.new(Arel::Nodes::NamedFunction.new('concat_ws', [' '] + columns).to_sql)
+
+      document = Arel::Nodes::SqlLiteral.new(ts_concat_columns(columns).to_sql)
       expressions = [Arel::Nodes::SqlLiteral.new(connection.quote(ts_language)), Arel::Nodes::SqlLiteral.new(document)]
       Arel::Nodes::NamedFunction.new('to_tsvector', expressions)
     end
@@ -85,11 +88,36 @@ module Texticle
     query = query.join(' ') if query.is_a?(Array)
     orders = Texticle.arel_columns(self, ts_columns).map do |columns|
       columns = [columns] if !columns.is_a?(Array)
-      document = Arel::Nodes::SqlLiteral.new(Arel::Nodes::NamedFunction.new('concat_ws', [' '] + columns).to_sql)
+      document = Arel::Nodes::SqlLiteral.new(ts_concat_columns(columns).to_sql)
       Arel::Nodes::InfixOperation.new('<->', document, Arel::Nodes::InfixOperation.new('::', Arel::Nodes::SqlLiteral.new(connection.quote(query)), Arel::Nodes::SqlLiteral.new('text')))
     end
 
     orders.size > 1 ? Arel::Nodes::NamedFunction.new('LEAST', orders) : orders[0]
+  end
+
+  private
+
+  def ts_concat_columns(columns)
+    if columns.size == 1
+      root = Arel::Nodes::InfixOperation.new('::', columns.first, Arel::Nodes::SqlLiteral.new('text'))
+    else
+      column = Arel::Nodes::InfixOperation.new('::', Arel::Nodes::NamedFunction.new('COALESCE', [columns.first, '']), Arel::Nodes::SqlLiteral.new('text'))
+      root = Arel::Nodes::InfixOperation.new('||', column, nil)
+    end
+    
+    last = root
+    columns[1..-1].each_with_index do |column|
+      text_column = Arel::Nodes::InfixOperation.new('::', Arel::Nodes::NamedFunction.new('COALESCE', [column, '']), Arel::Nodes::SqlLiteral.new('text'))
+      last.right = Arel::Nodes::InfixOperation.new('||', ' ', nil)
+      if column == columns.last
+        last.right.right = text_column
+      else
+        last.right.right = Arel::Nodes::InfixOperation.new('||', text_column, nil)
+        last = last.right.right
+      end
+    end
+    
+    Arel::Nodes::Grouping.new(root)
   end
 
 end

@@ -23,11 +23,11 @@ class TexticleTest < ActiveSupport::TestCase
   end
 
   test 'ts_vectors returns ts_vectors' do
-    assert_equal ["to_tsvector('english', concat_ws(' ', \"books\".\"title\"))", "to_tsvector('english', concat_ws(' ', \"books\".\"subtitle\"))", "to_tsvector('english', concat_ws(' ', \"books\".\"slug\"))"], Book.ts_vectors.map(&:to_sql)
+    assert_equal ["to_tsvector('english', (\"books\".\"title\" :: text))", "to_tsvector('english', (\"books\".\"subtitle\" :: text))", "to_tsvector('english', (\"books\".\"slug\" :: text))"], Book.ts_vectors.map(&:to_sql)
   end
 
   test 'ts_vectors with joining text fields' do
-    assert_equal ["to_tsvector('english', concat_ws(' ', \"books\".\"title\", \"books\".\"subtitle\"))"], Novel.ts_vectors.map(&:to_sql)
+    assert_equal ["to_tsvector('english', (COALESCE(\"books\".\"title\", '') :: text || ' ' || COALESCE(\"books\".\"subtitle\", '') :: text))"], Novel.ts_vectors.map(&:to_sql)
   end
 
   test 'ts_relations' do
@@ -51,23 +51,23 @@ class TexticleTest < ActiveSupport::TestCase
   end
 
   test 'ts_order returns ordering' do
-    assert_equal "LEAST(concat_ws(' ', \"books\".\"title\") <-> 'dorian gray' :: text, concat_ws(' ', \"books\".\"subtitle\") <-> 'dorian gray' :: text, concat_ws(' ', \"books\".\"slug\") <-> 'dorian gray' :: text)", Book.ts_order('dorian gray').to_sql
+    assert_equal "LEAST((\"books\".\"title\" :: text) <-> 'dorian gray' :: text, (\"books\".\"subtitle\" :: text) <-> 'dorian gray' :: text, (\"books\".\"slug\" :: text) <-> 'dorian gray' :: text)", Book.ts_order('dorian gray').to_sql
   end
 
   test 'ts_order returns ordering with custom ts_columns' do
-    assert_equal "concat_ws(' ', \"books\".\"title\", \"books\".\"subtitle\") <-> 'dorian gray' :: text", Novel.ts_order('dorian gray').to_sql
+    assert_equal "(COALESCE(\"books\".\"title\", '') :: text || ' ' || COALESCE(\"books\".\"subtitle\", '') :: text) <-> 'dorian gray' :: text", Novel.ts_order('dorian gray').to_sql
   end
 
   test 'search' do
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Book.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books"
-      WHERE (to_tsvector('english', concat_ws(' ', "books"."title")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
-        OR to_tsvector('english', concat_ws(' ', "books"."subtitle")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
-        OR to_tsvector('english', concat_ws(' ', "books"."slug")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
-      ORDER BY LEAST(concat_ws(' ', "books"."title") <-> 'dorian gray' :: text,
-        concat_ws(' ', "books"."subtitle") <-> 'dorian gray' :: text,
-        concat_ws(' ', "books"."slug") <-> 'dorian gray' :: text)
+      WHERE (to_tsvector('english', ("books"."title" :: text)) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', ("books"."subtitle" :: text)) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', ("books"."slug" :: text)) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
+      ORDER BY LEAST(("books"."title" :: text) <-> 'dorian gray' :: text,
+        ("books"."subtitle" :: text) <-> 'dorian gray' :: text,
+        ("books"."slug" :: text) <-> 'dorian gray' :: text)
     SQL
   end
 
@@ -75,8 +75,8 @@ class TexticleTest < ActiveSupport::TestCase
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Novel.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books"
-      WHERE (to_tsvector('english', concat_ws(' ', "books"."title", "books"."subtitle")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
-      ORDER BY concat_ws(' ', "books"."title", "books"."subtitle") <-> 'dorian gray' :: text
+      WHERE (to_tsvector('english', (COALESCE("books"."title", '') :: text || ' ' || COALESCE("books"."subtitle", '') :: text)) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
+      ORDER BY (COALESCE("books"."title", '') :: text || ' ' || COALESCE("books"."subtitle", '') :: text) <-> 'dorian gray' :: text
     SQL
   end
 
@@ -84,8 +84,8 @@ class TexticleTest < ActiveSupport::TestCase
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Biography.search(0).to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books"
-      WHERE (to_tsvector('english', concat_ws(' ', "books"."id")) @@ to_tsquery('english', '0:*' :: text))
-      ORDER BY concat_ws(' ', "books"."id") <-> 0 :: text
+      WHERE (to_tsvector('english', ("books"."id" :: text)) @@ to_tsquery('english', '0:*' :: text))
+      ORDER BY ("books"."id" :: text) <-> 0 :: text
     SQL
   end
 
@@ -93,12 +93,12 @@ class TexticleTest < ActiveSupport::TestCase
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Book.search(['dorian', 'gray']).to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books"
-      WHERE (to_tsvector('english', concat_ws(' ', "books"."title")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
-        OR to_tsvector('english', concat_ws(' ', "books"."subtitle")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
-        OR to_tsvector('english', concat_ws(' ', "books"."slug")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
-      ORDER BY LEAST(concat_ws(' ', "books"."title") <-> 'dorian gray' :: text,
-        concat_ws(' ', "books"."subtitle") <-> 'dorian gray' :: text,
-        concat_ws(' ', "books"."slug") <-> 'dorian gray' :: text)
+      WHERE (to_tsvector('english', ("books"."title" :: text)) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', ("books"."subtitle" :: text)) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', ("books"."slug" :: text)) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
+      ORDER BY LEAST(("books"."title" :: text) <-> 'dorian gray' :: text,
+        ("books"."subtitle" :: text) <-> 'dorian gray' :: text,
+        ("books"."slug" :: text) <-> 'dorian gray' :: text)
     SQL
   end
 
@@ -107,18 +107,18 @@ class TexticleTest < ActiveSupport::TestCase
       SELECT "authors".*
       FROM "authors"
       INNER JOIN "books" ON "books"."author_id" = "authors"."id"
-      WHERE (to_tsvector('english', concat_ws(' ', "authors"."name")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
-        OR to_tsvector('english', concat_ws(' ', "books"."title")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
-      ORDER BY LEAST(concat_ws(' ', "authors"."name") <-> 'dorian gray' :: text, concat_ws(' ', "books"."title") <-> 'dorian gray' :: text)
+      WHERE (to_tsvector('english', ("authors"."name" :: text)) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', ("books"."title" :: text)) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
+      ORDER BY LEAST(("authors"."name" :: text) <-> 'dorian gray' :: text, ("books"."title" :: text) <-> 'dorian gray' :: text)
     SQL
 
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Cookbook.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books" INNER JOIN "authors" ON "authors"."id" = "books"."author_id"
-      WHERE (to_tsvector('english', concat_ws(' ', "books"."title")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
-        OR to_tsvector('english', concat_ws(' ', "authors"."id")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
-        OR to_tsvector('english', concat_ws(' ', "authors"."name")) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
-      ORDER BY LEAST(concat_ws(' ', "books"."title") <-> 'dorian gray' :: text, concat_ws(' ', "authors"."id") <-> 'dorian gray' :: text, concat_ws(' ', "authors"."name") <-> 'dorian gray' :: text)
+      WHERE (to_tsvector('english', ("books"."title" :: text)) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', ("authors"."id" :: text)) @@ to_tsquery('english', 'dorian:* & gray:*' :: text)
+        OR to_tsvector('english', ("authors"."name" :: text)) @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
+      ORDER BY LEAST(("books"."title" :: text) <-> 'dorian gray' :: text, ("authors"."id" :: text) <-> 'dorian gray' :: text, ("authors"."name" :: text) <-> 'dorian gray' :: text)
     SQL
   end
 
