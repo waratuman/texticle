@@ -1,4 +1,4 @@
-# Texticle
+
 
 ActiveRecord extension for full text search in PostgreSQL.
 
@@ -14,42 +14,55 @@ And then execute:
 
 ## Usage
 
-By default Texticle will search all text and string columns.
-
-	# Attributes: [author, title, slug]
-    class Book < ActiveRecord::Base
-        extend Texticle
-
-    end
- 
-`Book.search('dorian gray')` will search the author, title, and slug fields.
-
-	# Attributes: [author, title, slug]
-    class Book < ActiveRecord::Base
-        extend Texticle
-
-        def self.seachable_columns
-            [:author, :title]
-        end
-    end
-
-`Book.search('dorian gray')` will search the author, title fields.
+Every model making use of Texticle needs to define the following function as in
+the example below. In addition a field in the database called `ts` is required
+as well.
 
     class Book < ActiveRecord::Base
-        extend Texticle
+      extend Texticle
+      belongs_to :author
 
-        def self.seachable_columns
-            [[:author, :title]]
-        end
+      after_save :update_fulltext_index
+
+      self.fulltext_fields = %W[title subtitle]
+
+      def update_fulltext_index
+        text = fulltext_fields.map { |x| read_attribute(x) }
+        text = text.join("\n").gsub(/\s+/, ' ')
+        update_column(:ts, text)
+      end
+
     end
 
-`Book.search('dorian gray')` will search the author and title fields appended together.
+The `title` and `subtitle` fields of this model will then be added to the
+fulltext index when `update_fulltext_index` index is called. This can be called
+as a callback or put on a job queue so that creating an index does not happen
+inside a web request (if you are using Rails).
 
-To extend `Texticle` in every model add the following to either `config/application.rb` or create an initializer file (`config/initializers/texticle.rb`):
+    class Book < ActiveRecord::Base
+      extend Texticle
+      belongs_to :author
 
-    ActiveSupport.on_load :active_record do
-        extend Texticle
+      after_save do |r|
+        if r.changes.any? { |x| r.fulltext_fields.include?(x[0]) } }
+          FulltextIndexJob.enqueue(r.class.base_class, r.id) 
+         end
+      end
+
+      self.fulltext_fields = %W[title subtitle]
+
+      def update_fulltext_index
+        text = fulltext_fields.map { |x| read_attribute(x) }
+        text = text.join("\n").gsub(/\s+/, ' ')
+        update_column(:ts, text)
+      end
+
     end
+
+    
+After the index is built `Book.search('dorian gray')` will search the `books`
+table `ts` field.
+
 
 ## Contributing
 

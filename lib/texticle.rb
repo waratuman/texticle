@@ -1,73 +1,22 @@
 module Texticle
 
-  def self.extended(klass)
-    klass.send(:class_attribute, :ts_column_names, :instance_accessor => false)
-    klass.ts_column_names = []
-  end
+  class << self
 
-  def self.arel_columns(klass, value)
-    if value.is_a?(Array)
-      value.map { |v| arel_columns(klass, v) }
-    elsif value.is_a?(Hash)
-      value = value.first
-      relation = klass.reflect_on_association(value[0])
-      arel_columns(relation.klass, value[1])
-    else
-      klass.arel_table[value.to_s]
+    def extended(klass)
+      klass.send(:class_attribute, :fulltext_fields)
+      klass.fulltext_fields = []
     end
-  end
 
-  def searchable(*columns)
-    self.ts_column_names += columns
-  end
-
-  def ts_columns
-    if ts_column_names.empty?
-      searchable(*columns.select { |c| [:string, :text].include?(c.type) }.map(&:name))
-    else
-      ts_column_names
-    end
-  end
-
-  def search(query, options={})
-    return where(nil) if query.to_s.strip.empty?
-
-    conditions = ts_vectors.map do |v|
-      Arel::Nodes::InfixOperation.new('@@', v, ts_query(query))
-    end
-    conditions = conditions[1..-1].inject(conditions[0]) { |memo, c| Arel::Nodes::Or.new(memo, c) }
-
-    joins = ts_relations.map(&:name).map(&:to_sym)
-
-    where(conditions).order(ts_order(query)).joins(joins)
   end
 
   def ts_language
     "english"
   end
 
-  
-
-  def ts_vectors
-    Texticle.arel_columns(self, ts_columns).map do |columns|
-      columns = [columns] if !columns.is_a?(Array)
-
-      document = Arel::Nodes::SqlLiteral.new(ts_concat_columns(columns).to_sql)
-      expressions = [Arel::Nodes::SqlLiteral.new(connection.quote(ts_language)), Arel::Nodes::SqlLiteral.new(document)]
-      Arel::Nodes::NamedFunction.new('to_tsvector', expressions)
-    end
-  end
-
-  def ts_relations
-    relations = []
-    ts_columns.each do |value|
-      if reflect_on_association(value)
-        relations << reflect_on_association(value)
-      elsif value.is_a?(Hash)
-        relations << reflect_on_all_associations.find { |r| value.keys.map(&:to_s).include?(r.name.to_s) }
-      end
-    end
-    relations.uniq
+  def ts_vector
+    document = self.arel_table[:ts]
+    language = Arel::Nodes::SqlLiteral.new(connection.quote(ts_language))
+    Arel::Nodes::NamedFunction.new('to_tsvector', [language, document])
   end
 
   def ts_query(query)
@@ -86,38 +35,16 @@ module Texticle
 
   def ts_order(query)
     query = query.join(' ') if query.is_a?(Array)
-    orders = Texticle.arel_columns(self, ts_columns).map do |columns|
-      columns = [columns] if !columns.is_a?(Array)
-      document = Arel::Nodes::SqlLiteral.new(ts_concat_columns(columns).to_sql)
-      Arel::Nodes::InfixOperation.new('<->', document, Arel::Nodes::InfixOperation.new('::', Arel::Nodes::SqlLiteral.new(connection.quote(query)), Arel::Nodes::SqlLiteral.new('text')))
-    end
-
-    orders.size > 1 ? Arel::Nodes::NamedFunction.new('LEAST', orders) : orders[0]
+    query = Arel::Nodes::InfixOperation.new('::', Arel::Nodes::SqlLiteral.new(connection.quote(query)), Arel::Nodes::SqlLiteral.new('text'))
+    document = self.arel_table[:ts]
+    order = Arel::Nodes::InfixOperation.new('<->', document, document)
   end
 
-  private
+  def search(query, options={})
+    return where(nil) if query.to_s.strip.empty?
 
-  def ts_concat_columns(columns)
-    if columns.size == 1
-      root = Arel::Nodes::InfixOperation.new('::', columns.first, Arel::Nodes::SqlLiteral.new('text'))
-    else
-      column = Arel::Nodes::InfixOperation.new('::', Arel::Nodes::NamedFunction.new('COALESCE', [columns.first, '']), Arel::Nodes::SqlLiteral.new('text'))
-      root = Arel::Nodes::InfixOperation.new('||', column, nil)
-    end
-    
-    last = root
-    columns[1..-1].each_with_index do |column|
-      text_column = Arel::Nodes::InfixOperation.new('::', Arel::Nodes::NamedFunction.new('COALESCE', [column, '']), Arel::Nodes::SqlLiteral.new('text'))
-      last.right = Arel::Nodes::InfixOperation.new('||', ' ', nil)
-      if column == columns.last
-        last.right.right = text_column
-      else
-        last.right.right = Arel::Nodes::InfixOperation.new('||', text_column, nil)
-        last = last.right.right
-      end
-    end
-    
-    Arel::Nodes::Grouping.new(root)
+    condition = Arel::Nodes::InfixOperation.new('@@', ts_vector, ts_query(query))
+    where(condition).order(ts_order(query))
   end
 
 end
