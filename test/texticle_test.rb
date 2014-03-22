@@ -48,7 +48,7 @@ class TexticleTest < ActiveSupport::TestCase
   end
   
   test 'ts_order returns ordering' do
-    assert_equal '"books"."ts" <-> "books"."ts"', Book.ts_order('dorian gray').to_sql
+    assert_equal '\'dorian gray\' :: text <-> "books"."ts"', Book.ts_order('dorian gray').to_sql
   end
   
   test 'search' do
@@ -56,7 +56,7 @@ class TexticleTest < ActiveSupport::TestCase
       SELECT "books".*
       FROM "books"
       WHERE (to_tsvector('english', "books"."ts") @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
-      ORDER BY "books"."ts" <-> "books"."ts"
+      ORDER BY 'dorian gray' :: text <-> "books"."ts"
     SQL
   end
   
@@ -65,7 +65,7 @@ class TexticleTest < ActiveSupport::TestCase
       SELECT "books".*
       FROM "books"
       WHERE (to_tsvector('english', "books"."ts") @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
-      ORDER BY "books"."ts" <-> "books"."ts"
+      ORDER BY 'dorian gray' :: text <-> "books"."ts"
     SQL
   end
   
@@ -74,7 +74,7 @@ class TexticleTest < ActiveSupport::TestCase
       SELECT "books".*
       FROM "books"
       WHERE (to_tsvector('english', "books"."ts") @@ to_tsquery('english', '0:*' :: text))
-      ORDER BY "books"."ts" <-> "books"."ts"
+      ORDER BY 0 :: text <-> "books"."ts"
     SQL
   end
   
@@ -83,7 +83,7 @@ class TexticleTest < ActiveSupport::TestCase
       SELECT "books".*
       FROM "books"
       WHERE (to_tsvector('english', "books"."ts") @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
-      ORDER BY "books"."ts" <-> "books"."ts"
+      ORDER BY 'dorian gray' :: text <-> "books"."ts"
     SQL
   end
   
@@ -92,14 +92,14 @@ class TexticleTest < ActiveSupport::TestCase
       SELECT "authors".*
       FROM "authors"
       WHERE (to_tsvector('english', "authors"."ts") @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
-      ORDER BY "authors"."ts" <-> "authors"."ts"
+      ORDER BY 'dorian gray' :: text <-> "authors"."ts"
     SQL
   
     assert_equal (<<-SQL).strip.gsub(/\s+/, ' '), Cookbook.search('dorian gray').to_sql.gsub(/\s+/, ' ')
       SELECT "books".*
       FROM "books"
       WHERE (to_tsvector('english', "books"."ts") @@ to_tsquery('english', 'dorian:* & gray:*' :: text))
-      ORDER BY "books"."ts" <-> "books"."ts"
+      ORDER BY 'dorian gray' :: text <-> "books"."ts"
     SQL
   end
   

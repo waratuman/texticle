@@ -35,9 +35,9 @@ module Texticle
 
   def ts_order(query)
     query = query.join(' ') if query.is_a?(Array)
-    query = Arel::Nodes::InfixOperation.new('::', Arel::Nodes::SqlLiteral.new(connection.quote(query)), Arel::Nodes::SqlLiteral.new('text'))
+    query = Arel::Nodes::InfixOperation.new('::', query, Arel::Nodes::SqlLiteral.new('text'))
     document = self.arel_table[:ts]
-    order = Arel::Nodes::InfixOperation.new('<->', document, document)
+    order = Arel::Nodes::InfixOperation.new('<->', query, document)
   end
 
   def search(query, options={})
