@@ -2,7 +2,6 @@ require 'rubygems'
 require 'bundler/setup'
 require 'sqlite3'
 require 'active_record'
-require 'minitest/unit'
 require 'minitest/autorun'
 require 'texticle'
 

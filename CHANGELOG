@@ -1,0 +1,4 @@
+# 0.3.0
+
+- Rails 4.2.0 compatibility
+- Rails 4.1 and below are no longer supported

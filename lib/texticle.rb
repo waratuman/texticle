@@ -15,7 +15,7 @@ module Texticle
 
   def ts_vector
     document = self.arel_table[:ts]
-    language = Arel::Nodes::SqlLiteral.new(connection.quote(ts_language))
+    language = Arel::Nodes.build_quoted(ts_language)
     Arel::Nodes::NamedFunction.new('to_tsvector', [language, document])
   end
 
@@ -27,15 +27,16 @@ module Texticle
     end
     querytext = querytext.map { |q| q << ':*' }
     querytext = querytext[1..-1].inject(querytext[0]) { |memo, c| memo +  ' & ' + c }
-    querytext = Arel::Nodes::InfixOperation.new('::', querytext, Arel::Nodes::SqlLiteral.new('text'))
+    querytext = Arel::Nodes::InfixOperation.new('::', Arel::Nodes.build_quoted(querytext), Arel::Nodes::SqlLiteral.new('text'))
     # This has to be a SqlLiteral due to the following issue: https://github.com/rails/arel/issues/153.
-    expressions = [Arel::Nodes::SqlLiteral.new(connection.quote(ts_language)), Arel::Nodes::SqlLiteral.new(querytext.to_sql)]
+    # expressions = [Arel::Nodes::SqlLiteral.new(connection.quote(ts_language)), Arel::Nodes::SqlLiteral.new(querytext.to_sql)]
+    expressions = [Arel::Nodes.build_quoted(ts_language), querytext]
     Arel::Nodes::NamedFunction.new('to_tsquery', expressions)
   end
 
   def ts_order(query)
     query = query.join(' ') if query.is_a?(Array)
-    query = Arel::Nodes::InfixOperation.new('::', query, Arel::Nodes::SqlLiteral.new('text'))
+    query = Arel::Nodes::InfixOperation.new('::', Arel::Nodes.build_quoted(query), Arel::Nodes::SqlLiteral.new('text'))
     document = self.arel_table[:ts]
     order = Arel::Nodes::InfixOperation.new('<->', query, document)
   end
