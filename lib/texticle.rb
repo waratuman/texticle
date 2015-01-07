@@ -19,12 +19,17 @@ module Texticle
     Arel::Nodes::NamedFunction.new('to_tsvector', [language, document])
   end
 
+  def ts_query_quote(string)
+    string.gsub(/\(|\)|:|\||!|\&|\*/, ' ')
+  end
+
   def ts_query(query)
     querytext = if query.is_a?(Array)
-      query.map(&:to_s).map { |x| x.gsub(/\(\):\|!&\*'/, '') }
+      query.map { |x| ts_query_quote(x.to_s) }
     else
-      query.to_s.strip.gsub(/\(|\)|:|\||!|\&|\*|'/, '').split(/\s+/)
+      ts_query_quote(query.to_s.strip).split(/\s+/)
     end
+
     querytext = querytext.map { |q| q << ':*' }
     querytext = querytext[1..-1].inject(querytext[0]) { |memo, c| memo +  ' & ' + c }
     querytext = Arel::Nodes::InfixOperation.new('::', Arel::Nodes.build_quoted(querytext), Arel::Nodes::SqlLiteral.new('text'))

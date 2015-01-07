@@ -36,9 +36,13 @@ class TexticleTest < ActiveSupport::TestCase
   end
   
   test "ts_query escapes ():|!&*'" do
-    assert_equal "to_tsquery('english', 'dorian:* & gray:*' :: text)", Book.ts_query('dorian & gray ():|!&*\'').to_sql
+    assert_equal "to_tsquery('english', 'dorian:* & gray:* & \'\':*' :: text)", Book.ts_query('dorian & gray ():|!&*\'').to_sql
   end
-  
+
+  test "ts_query escapes ():|!&*' with space" do
+    assert_equal "to_tsquery('english', 'a:* & b:* & c:* & d:* & e:* & f:* & g:* & h\\i\'\'j:*' :: text)", Book.ts_query('a(b)c:d|e!f&g*h\i\'j').to_sql
+  end
+
   test 'ts_query with array returns query' do
     assert_equal "to_tsquery('english', 'dorian:* & gray:*' :: text)", Book.ts_query(['dorian', 'gray']).to_sql
   end
