@@ -56,7 +56,7 @@ module Texticle
 
     def update_fulltext_index
       text = (fulltext_fields.map { |x| read_attribute(x) })
-      text = text.flatten.join("\n").gsub(/\s+/, ' ')
+      text = text.flatten.join("\n").gsub(/\s+/, ' ').strip
       update_column(:ts, text)
     end
 
