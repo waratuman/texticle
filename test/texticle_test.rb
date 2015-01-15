@@ -4,11 +4,17 @@ class TexticleTest < ActiveSupport::TestCase
 
   test 'extract_text' do
     author = Author.create(:name => 'Oscar Wild')
-    book = Book.create(:title => 'The Picture of Dorian Gray', :subtitle => 'A classic work of gothic fiction', :author => author)
+    book = Book.create(title: 'The Picture of Dorian Gray', subtitle: 'A classic work of gothic fiction', author: author)
     assert_equal [book.title, book.subtitle].join(' '), book.ts
     author.reload
     author.update_fulltext_index
     assert_equal [book.author.name, book.title, book.subtitle].join(' '), author.ts
+  end
+
+  test 'custom update_fulltext_index' do
+    author = Author.create(name: 'Julia Child')
+    book = Cookbook.create(title: 'Mastering the Art of French Cooking', author: author)
+    assert_equal 'Mastering the Art of French Cooking 1 Julia Child', book.ts
   end
 
   test 'fulltext_fields' do

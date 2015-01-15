@@ -4,6 +4,7 @@ require 'sqlite3'
 require 'active_record'
 require 'minitest/autorun'
 require 'texticle'
+require 'byebug'
 
 class ActiveSupport::TestCase
 
@@ -15,13 +16,6 @@ class ActiveSupport::TestCase
     after_save :update_fulltext_index
 
     self.fulltext_fields = %W[title subtitle]
-
-    def update_fulltext_index
-      text = fulltext_fields.map { |x| read_attribute(x) }
-      text = text.join("\n").gsub(/\s+/, ' ')
-      update_column(:ts, text)
-    end
-
   end
 
   # Search with joined fields
@@ -32,13 +26,6 @@ class ActiveSupport::TestCase
     after_save :update_fulltext_index
 
     self.fulltext_fields = %W[title subtitle]
-
-    def update_fulltext_index
-      text = fulltext_fields.map { |x| read_attribute(x) }
-      text = text.join("\n").gsub(/\s+/, ' ')
-      update_column(:ts, text)
-    end
-
   end
 
   # Search with integer field
@@ -49,13 +36,6 @@ class ActiveSupport::TestCase
     after_save :update_fulltext_index
 
     self.fulltext_fields = %W[id]
-
-    def update_fulltext_index
-      text = fulltext_fields.map { |x| read_attribute(x) }
-      text = text.join("\n").gsub(/\s+/, ' ')
-      update_column(:ts, text)
-    end
-
   end
 
   # Search on relations

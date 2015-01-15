@@ -3,6 +3,7 @@ module Texticle
   class << self
 
     def extended(klass)
+      klass.send(:include, InstanceMethods)
       klass.send(:class_attribute, :fulltext_fields)
       klass.fulltext_fields = []
     end
@@ -33,8 +34,6 @@ module Texticle
     querytext = querytext.map { |q| q << ':*' }
     querytext = querytext[1..-1].inject(querytext[0]) { |memo, c| memo +  ' & ' + c }
     querytext = Arel::Nodes::InfixOperation.new('::', Arel::Nodes.build_quoted(querytext), Arel::Nodes::SqlLiteral.new('text'))
-    # This has to be a SqlLiteral due to the following issue: https://github.com/rails/arel/issues/153.
-    # expressions = [Arel::Nodes::SqlLiteral.new(connection.quote(ts_language)), Arel::Nodes::SqlLiteral.new(querytext.to_sql)]
     expressions = [Arel::Nodes.build_quoted(ts_language), querytext]
     Arel::Nodes::NamedFunction.new('to_tsquery', expressions)
   end
@@ -51,6 +50,16 @@ module Texticle
 
     condition = Arel::Nodes::InfixOperation.new('@@', ts_vector, ts_query(query))
     where(condition).order(ts_order(query))
+  end
+
+  module InstanceMethods
+
+    def update_fulltext_index
+      text = (fulltext_fields.map { |x| read_attribute(x) })
+      text = text.flatten.join("\n").gsub(/\s+/, ' ')
+      update_column(:ts, text)
+    end
+
   end
 
 end
