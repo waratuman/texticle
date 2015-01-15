@@ -26,12 +26,6 @@ as well.
 
       self.fulltext_fields = %W[title subtitle]
 
-      def update_fulltext_index
-        text = fulltext_fields.map { |x| read_attribute(x) }
-        text = text.join("\n").gsub(/\s+/, ' ')
-        update_column(:ts, text)
-      end
-
     end
 
 The `title` and `subtitle` fields of this model will then be added to the
@@ -51,15 +45,30 @@ inside a web request (if you are using Rails).
 
       self.fulltext_fields = %W[title subtitle]
 
+    end
+
+Custom `#update_fulltext_index` methods can be used instead of the default:
+
+    class Book < ActiveRecord::Base
+      extend Texticle
+      belongs_to :author
+
+      after_save do |r|
+        if r.changes.any? { |x| r.fulltext_fields.include?(x[0]) } }
+          FulltextIndexJob.enqueue(r.class.base_class, r.id) 
+         end
+      end
+
+      self.fulltext_fields = %W[title subtitle]
+
       def update_fulltext_index
-        text = fulltext_fields.map { |x| read_attribute(x) }
+        text = fulltext_fields.map { |x| read_attribute(x) } + [author.name]
         text = text.join("\n").gsub(/\s+/, ' ')
         update_column(:ts, text)
       end
 
     end
 
-    
 After the index is built `Book.search('dorian gray')` will search the `books`
 table `ts` field.
 
