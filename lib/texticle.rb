@@ -21,7 +21,7 @@ module Texticle
   end
 
   def ts_query_quote(string)
-    string.gsub(/\(|\)|:|\||!|\&|\*/, ' ').gsub(/\s+/, ' ').strip
+    string.gsub(/\(|\)|:|\||!|\&|\*/, ' ').gsub(/\s+/, ' ').strip.scrub('')
   end
 
   def ts_query(query)
