@@ -40,11 +40,7 @@ class TexticleTest < ActiveSupport::TestCase
   test 'ts_query returns query' do
     assert_equal "to_tsquery('english', 'dorian:* & gray:*' :: text)", Book.ts_query('dorian gray').to_sql
   end
-  
-  test 'ts_query escapes invalide byte sequences' do
-    assert_equal "to_tsquery('english', 'dorian:* & gray:*' :: text)", Book.ts_query(URI.decode('dorian%A0%A0gray')).to_sql
-  end
-  
+
   test "ts_query escapes ():|!&*'" do
     assert_equal "to_tsquery('english', 'dorian:* & gray:* & \'\':*' :: text)", Book.ts_query('dorian & gray ():|!&*\'').to_sql
   end
