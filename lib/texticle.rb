@@ -21,6 +21,7 @@ module Texticle
   end
 
   def ts_query_quote(string)
+    string.encode!(invalid: :replace, replace: ' ')
     string.gsub(/\(|\)|:|\||!|\&|\*/, ' ').gsub(/\s+/, ' ').strip.scrub('')
   end
 
